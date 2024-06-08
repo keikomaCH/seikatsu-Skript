@@ -1,0 +1,5 @@
+on rightclick holding a ender eye:
+	message "&e【アナウンス】" to player
+	message "&eまだ要塞を特定することはできません！" to player
+	cancel event
+	

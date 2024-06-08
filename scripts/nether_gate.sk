@@ -1,0 +1,5 @@
+on rightclick using flint and steel:
+	if the clicked block is a obsidian:
+		message "&e【アナウンス】" to player
+		message "&eまだネザーに入ることができません！" to player
+		cancel event
