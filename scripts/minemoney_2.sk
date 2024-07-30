@@ -1,0 +1,273 @@
+#---------------------------------------------------------
+#概要
+#ブロックを破壊すると金が手に入るコード
+#
+#使用法
+#値段の設定
+#・/minedコマンドを使用してguiを開く
+#・空白(絵画)のスロットを選びブロックを右クリックで選択する
+#・エメラルドをクリックし値段をチャットで入力する
+#
+#破壊されるブロックの状態・設置されたブロックから再び鐘江が手に入るかの設定は208行目と238行目を参照する
+#---------------------------------------------------------
+
+
+
+
+command /miningeditor [<number=1>]:
+    aliases: /mined
+    permission: operator
+    executable by: player
+    trigger:
+        set {_page} to min(10, max(1, floor(arg-1)))
+        open chest inventory with 6 row named "ブロックメニュー" to player
+        set {_item} to white glass pane named " "
+        set {_i} to 0
+        set string tag "mined_gui_click" of nbt of {_item} to "cancel"
+        loop 54 times:
+            set slot {_i} of player's current inventory to {_item}
+            add 1 to {_i}
+        set {_item} to barrier named "閉じる"
+        set string tag "mined_gui_click" of nbt of {_item} to "close"
+        set slot 53 of player's current inventory to {_item}
+        set {_item} to book named "ページ: %{_page}%/10"
+        set string tag "mined_gui_click" of nbt of {_item} to "cancel"
+        set slot 49 of player's current inventory to {_item}
+        set {_item} to paper named "次のページ"
+        set string tag "mined_gui_click" of nbt of {_item} to "next"
+        set int tag "mined_gui_page" of nbt of {_item} to {_page}
+        set slot 52 of player's current inventory to {_item}
+        set {_item} to paper named "前のページ"
+        set string tag "mined_gui_click" of nbt of {_item} to "before"
+        set int tag "mined_gui_page" of nbt of {_item} to {_page}
+        set slot 46 of player's current inventory to {_item}
+
+        set {_i} to 0
+        loop 36 times:
+            set {_id} to {_i} + 36 * ({_page} - 1)
+            set {_value} to {mined_value_%{_id}%}
+            if {_value} is not set:
+                set {_value} to "---"
+            if {mined_block_%{_id}%} is set:
+                set {_item} to "%{mined_block_%{_id}%}%" parsed as an item type with lore "§6$%{_value}%"
+                if {_item} is air:
+                    set {_item} to flower banner pattern named "%{mined_block_%{_id}%}%" with lore "§6$%{_value}%"
+                set string tag "mined_gui_click" of nbt of {_item} to "edit_block"
+            else:
+                set {_item} to painting named "---"
+                set string tag "mined_gui_click" of nbt of {_item} to "set_block"
+            set int tag "mined_gui_id" of nbt of {_item} to {_id}
+            set slot {_i} + 9 of player's current inventory to {_item}
+            add 1 to {_i}
+
+command /miningblockeditor [<number=1>]:
+    aliases: /minbed
+    permission: operator
+    executable by: player
+    trigger:
+        set {_id} to floor(arg-1)
+        set {_value} to {mined_value_%{_id}%}
+        if {_value} is not set:
+            set {_value} to "---"
+        open chest inventory with 1 row named "ブロック編集" to player
+        set {_item} to white glass pane named " "
+        set {_i} to 0
+        set string tag "mined_gui_click" of nbt of {_item} to "cancel"
+        loop 9 times:
+            set slot {_i} of player's current inventory to {_item}
+            add 1 to {_i}
+        set {_item} to barrier named "閉じる"
+        set string tag "mined_gui_click" of nbt of {_item} to "close"
+        set slot 8 of player's current inventory to {_item}
+        set {_item} to book named "戻る"
+        set string tag "mined_gui_click" of nbt of {_item} to "menu"
+        set int tag "mined_gui_page" of nbt of {_item} to ceil({_id} / 36)
+        set slot 7 of player's current inventory to {_item}
+        set {_item} to paper named "削除"
+        set string tag "mined_gui_click" of nbt of {_item} to "delete_block"
+        set int tag "mined_gui_id" of nbt of {_item} to {_id}
+        set int tag "mined_gui_page" of nbt of {_item} to ceil({_id} / 36)
+        set slot 6 of player's current inventory to {_item}
+        set {_item} to "%{mined_block_%{_id}%}%" parsed as an item type with lore "§6$%{_value}%"
+        if {_item} is air:
+            set {_item} to flower banner pattern named "%{mined_block_%{_id}%}%" with lore "§6$%{_value}%"
+        set string tag "mined_gui_click" of nbt of {_item} to "cancel"
+        set slot 4 of player's current inventory to {_item}
+        set {_item} to nametag named "ブロックを編集"
+        set string tag "mined_gui_click" of nbt of {_item} to "set_block"
+        set int tag "mined_gui_id" of nbt of {_item} to {_id}
+        set slot 0 of player's current inventory to {_item}
+        set {_item} to emerald named "値段変更"
+        set string tag "mined_gui_click" of nbt of {_item} to "set_value"
+        set int tag "mined_gui_id" of nbt of {_item} to {_id}
+        set slot 1 of player's current inventory to {_item}
+
+command /miningblocksetter [<number=1>]:
+    aliases: /minbet
+    permission: operator
+    executable by: player
+    trigger:
+        set {_id} to floor(arg-1)
+        if {minbet.%player%.status} is set:
+            send "§aブロック選択をキャンセルしました。"
+            make player execute command "/minbed %{minbet.%player%.id}%"
+            delete {minbet.%player%.status}
+            delete {minbet.%player%.id}
+        else:
+            set {minbet.%player%.status} to true
+            set {minbet.%player%.id} to {_id}
+            send "§a選択したいブロックを右クリックしてください。"
+            send "§a/minbetでキャンセルできます。"
+
+on right click:
+    if event-block is set:
+        if {minbet.%player%.status} is set:
+            if {mined_id_%type of event-block%} is not set:
+                cancel event
+                set {_id} to {minbet.%player%.id}
+                delete {minbet.%player%.id}
+                delete {minbet.%player%.status}
+                set {mined_block_%{_id}%} to type of event-block
+                set {mined_id_%type of event-block%} to {_id}
+                send "§aブロックを選択しました。" to player
+                make player execute command "/minbed %{_id}%"
+            else:
+                send "§aそのブロックは設定されています。" to player
+                make player execute command "/minbed %{mined_id_%type of event-block%}%"
+                delete {minbet.%player%.id}
+                delete {minbet.%player%.status}
+        
+
+
+
+on inventory click:
+    if name of clicked inventory is "ブロックメニュー" or "ブロック編集":
+        set {_page} to int tag "mined_gui_page" of nbt of event-item
+        set {_id} to int tag "mined_gui_id" of nbt of event-item
+        play sound "ui.button.click" with volume 1 and pitch 1 to player
+        cancel event
+        if string tag "mined_gui_click" of nbt of event-item is "close":
+            close player's inventory
+        if string tag "mined_gui_click" of nbt of event-item is "menu":
+            close player's inventory
+            make player execute command "/mined %{_page}%"
+        if string tag "mined_gui_click" of nbt of event-item is "next":
+            if {_page} < 10:
+                make player execute command "/mined %{_page} + 1%"
+        if string tag "mined_gui_click" of nbt of event-item is "before":
+            if {_page} > 0:
+                make player execute command "/mined %{_page} - 1%"
+        if string tag "mined_gui_click" of nbt of event-item is "edit_block":
+            make player execute command "/minbed %{_id}%"
+        if string tag "mined_gui_click" of nbt of event-item is "set_block":
+            make player execute command "/minbet %{_id}%"
+            close player's inventory
+        if string tag "mined_gui_click" of nbt of event-item is "delete_block":
+            delete {mined_id_%{mined_block_%{_id}%}%}
+            delete {mined_block_%{_id}%}
+            delete {mined_value_%{_id}%}
+            send "§aブロックを削除しました"
+            close player's inventory
+            make player execute command "/mined %{_page}%"
+        if string tag "mined_gui_click" of nbt of event-item is "set_value":
+            make player execute command "/minpet %{_id}%"
+            close player's inventory
+
+command /minepricesetter [<number=1>]:
+    aliases: /minpet
+    permission: operator
+    executable by: player
+    trigger:
+        set {_id} to floor(arg-1)
+        if {minpet.%player%.status} is set:
+            send "§a値段設定をキャンセルしました。"
+            make player execute command "/minped %{minpet.%player%.id}%"
+            delete {minpet.%player%.status}
+            delete {minbet.%player%.id}
+        else:
+            set {minpet.%player%.status} to true
+            set {minpet.%player%.id} to {_id}
+            send "§a値段をチャットに入力してください。"
+            send "§a/minpetでキャンセルできます。"
+
+on chat:
+    if {minpet.%player%.status} is set:
+        cancel event
+        set {_value} to message parsed as number
+        if {_value} is set:
+            set {_id} to {minpet.%player%.id}
+            set {mined_value_%{_id}%} to {_value}
+            send "§a値段を設定しました。"
+            make player execute command "/minbed %{_id}%"
+            delete {minpet.%player%.status}
+            delete {minbet.%player%.id}
+        else:
+            send "§a無効な値です。"
+            send "§a値段をチャットに入力してください。"
+            send "§a/minpetでキャンセルできます。"
+
+on piston extend:
+    loop moved blocks:
+        if {mined_id_%type of loop-value%} is set:
+            set {_block} to loop-value
+            set {mined_place_%location of {_block}%} to true
+            set {_loc} to location of {_block} ~ normalize vector from event-block to loop-value
+            set {mined_place_%location of {_loc}%} to true
+
+on piston retract:
+    loop moved blocks:
+        if {mined_id_%type of loop-value%} is set:
+            set {_block} to loop-value
+            set {mined_place_%location of {_block}%} to true
+            set {_loc} to location of {_block} ~ normalize vector from event-block to loop-value
+            set {mined_place_%location of {_loc}%} to true
+
+#破壊
+on break:
+    if {mined_id_%type of event-block%} is set:
+        if {mined_place_%location of event-block%} is not set:
+            set {_condition} to true
+            #---------------------------------------------------------
+            #ここに破壊ブロックの条件を追加する
+            #破壊されたブロックで金が手に入るか決める
+            #小麦の種が成長しきっていない場合除外する
+            if event-block is wheat:
+                if event-block is not wheat[age=7]:
+                    set {_condition} to false
+
+                    
+            #---------------------------------------------------------
+            if {_condition} is true:
+                set {_id} to {mined_id_%type of event-block%}
+                add {mined_value_%{_id}%} to balance of player
+                spawn text display at location of event-block
+                set {_text} to last spawned entity
+                set display text of {_text} to "§6+$%{mined_value_%{_id}%}%"
+                set display billboard of {_text} to center
+                set {_i} to 10
+                loop 10 times:
+                    teleport {_text} {_i}/200 meter above {_text}
+                    remove 1 from {_i}
+                    wait 1 tick
+                wait 0.5 second
+                kill {_text}
+        else:
+            delete {mined_place_%location of event-block%}
+
+#設置
+on place:
+    if {mined_id_%type of event-block%} is set:
+        set {_condition} to true
+        #---------------------------------------------------------
+        #ここに設置ブロックの条件を追加する
+        #置かれたブロックを破壊するときに金が手に入るかを決める
+        #例: 小麦の種の設置は除外する
+        if type of event-block is wheat:
+            set {_condition} to false
+
+
+        #---------------------------------------------------------
+        if {_condition} is true:
+            set {mined_place_%location of event-block%} to true
+
+

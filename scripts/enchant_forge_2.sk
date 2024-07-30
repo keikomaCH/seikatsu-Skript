@@ -1,0 +1,96 @@
+#---------------------------------------------------------
+#概要
+#エンチャントを金でそれぞれ1段階だけ強化できるようになる
+#
+#使用法
+#強化台にしたいブロックの2ブロック下にコマンドブロックを置きそこにforgeと入力する(識別用なので動作はしない)
+#強化台に強化したいアイテムをもってクリックすると強化メニューが開く
+on load:
+    #---------------------------------------------------------
+    #強化の基礎コスト コスト=基礎コスト*(2^レベル)
+    set {forge_base_cost} to 1000
+
+    #ここに無効化したいエンチャントを追加する
+    #エンチャント名はdocs参照 https://skripthub.net/docs/?id=2143
+    #例　束縛の呪いを無効化
+    set {forge_disables::curse of binding} to true
+
+    #---------------------------------------------------------
+on right click:
+    if block 2 below event-block is command block:
+        set {_block} to block 2 below event-block
+        if string tag "Command" of nbt of {_block} is "forge":
+            cancel event
+            if player's tool is air:
+                send "§5強化したいアイテムを手に持ってください。" to player
+            else:
+                set {_upgrade} to false
+                set {_enchanted} to false
+                loop enchantments of player's tool:
+                    set {_enchantment} to enchantment of loop-value
+                    set {_enchanted} to true
+                    if boolean tag "forge_%{_enchantment}%" of nbt of player's tool is not set:
+                        if {forge_disables::%{_enchantment}%} is not set:
+                            set {_upgrade} to true
+                if {_enchanted} is false:
+                    send "§5エンチャントされたアイテムを手に持ってください。" to player
+                else if {_upgrade} is false:
+                    send "§5このアイテムは完全に強化されています。" to player
+                else:
+                    open chest inventory with 2 row named "エンチャント強化" to player
+                    set {_item} to white glass pane named " "
+                    set string tag "forge_gui_click" of nbt of {_item} to "cancel"
+                    set {_i} to 9
+                    loop 9 times:
+                        set slot {_i} of player's current inventory to {_item}
+                        add 1 to {_i}
+                    set {_item} to barrier named "閉じる"
+                    set string tag "forge_gui_click" of nbt of {_item} to "close"
+                    set slot 17 of player's current inventory to {_item}
+                    set {_item} to emerald named "所持金" with lore "%player's balance%"
+                    set string tag "forge_gui_click" of nbt of {_item} to "cancel"
+                    set slot 9 of player's current inventory to {_item}
+                    set {_i} to 0
+                    loop enchantments of player's tool:
+                        set {_enchantment} to enchantment of loop-value
+                        set {_item} to book
+                        if boolean tag "forge_%{_enchantment}%" of nbt of player's tool is set:
+                            set {_item} to enchanted book named "§9強化済み"
+                            enchant {_item} with loop-value
+                            set string tag "forge_gui_click" of nbt of {_item} to "cancel"
+                        else if {forge_disables::%{_enchantment}%} is not set:
+                            set {_cost} to {forge_base_cost} * (2 ^ (enchantment level of loop-value))
+                            set {_item} to enchanted book named "§a強化する $%{_cost}%"
+                            enchant {_item} with loop-value
+                            set string tag "forge_gui_click" of nbt of {_item} to "upgrade"
+                            set string tag "forge_gui_enchant" of nbt of {_item} to "%{_enchantment}%"
+                        else:
+                            set {_item} to enchanted book named "§8強化不可"
+                            enchant {_item} with loop-value
+                            set string tag "forge_gui_click" of nbt of {_item} to "cancel"
+                        set slot {_i} of player's current inventory to {_item}
+                        add 1 to {_i}
+
+on inventory click:
+    if name of clicked inventory is "エンチャント強化":
+        cancel event
+        play sound "ui.button.click" with volume 1 and pitch 1 to player
+        if string tag "forge_gui_click" of nbt of event-item is "close":
+            close player's inventory
+        if string tag "forge_gui_click" of nbt of event-item is "upgrade":
+            set {_enchantment} to (string tag "forge_gui_enchant" of nbt of event-item) parsed as enchantment
+            set {_tool} to player's tool
+            set {_level} to enchantment level of {_enchantment} of {_tool}
+            set {_cost} to {forge_base_cost} * (2 ^ {_level})
+            if player's balance >= {_cost}:
+                send "§5強化完了!" to player
+                send "§6-$%{_cost}%" to player
+                remove {_cost} from player's balance
+                set enchantment level of {_enchantment} of player's tool to {_level} + 1
+                set boolean tag "forge_%{_enchantment}%" of nbt of player's tool to true
+            else:
+                send "§5お金が足りません。" to player
+            close player's inventory
+
+
+
